@@ -1,4 +1,4 @@
-name: findsgjobs_app
+name: findsgjobs_tmp
 channels:
   - conda-forge
   - defaults
@@ -11,3 +11,10 @@ dependencies:
       - requests==2.31.0
       - PyPDF2==3.20.1
       - python-docx==0.8.11
+      - langchain==0.3.27
+      - langchain-google-genai==2.0.5
+      - langchain-community==0.3.26
+      - google-generativeai==0.8.3
+      - tavily-python==0.5.0
+      - python-dotenv==1.0.0
+      - reportlab==4.2.2
