@@ -4,7 +4,9 @@ import io
 from typing import List, Dict, Tuple
 
 import streamlit as st
-from smart_gap_analysis import get_smart_gap_analysis, get_quick_insights
+import os
+from dotenv import load_dotenv
+from smart_gap_analysis import get_smart_gap_analysis
 
 
 # ---------------- PAGE CONFIG ----------------
@@ -15,6 +17,9 @@ st.set_page_config(
 )
 
 # ---------------- SESSION STATE INIT ----------------
+# Load .env file so GEMINI/TAVILY keys can be read
+load_dotenv()
+
 for key, default in [
     ("full_jobs", []),           # list of full backend job dicts (inner "job")
     ("flat_jobs", []),           # simplified rows for UI table
@@ -23,10 +28,10 @@ for key, default in [
     ("analysis_text", ""),       # gap analysis + course recommendation
     ("job_match_pct", None),     # overall job match %
     ("keyword_coverage_pct", None),
-    ("use_smart_analysis", True), # flag to use smart AI analysis
-    ("gemini_api_key", ""),      # Gemini API key
-    ("tavily_api_key", ""),      # Tavily API key for web search
-    ("course_recommendations", ""), # AI-generated course recommendations
+    # Removed AI config keys (no sidebar AI settings)
+    ("gemini_api_key", os.getenv("GEMINI_API_KEY", "")),
+    ("tavily_api_key", os.getenv("TAVILY_API_KEY", "")),
+    ("course_recommendations", ""), # course recommendations
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -354,11 +359,9 @@ def generate_pdf_bytes(title: str, subtitle: str, analysis_md: str, courses_md: 
     def md_to_html(s: str) -> str:
         # Convert basic markdown bold to HTML for Paragraph
         # Replace **bold** with <b>bold</b>
-        out = s.replace("**", "<b>")
-        # Balance tags if odd count; simple fallback
-        if out.count("<b>") % 2 == 1:
-            out = out + "</b>"
-        out = out.replace("<b><b>", "</b>")  # naive fix in case of overlaps
+        import re
+        # Use regex to properly match **text** and replace with <b>text</b>
+        out = re.sub(r'\*\*([^*]+)\*\*', r'<b>\1</b>', s)
         # Newlines to <br/>
         out = out.replace("\n", "<br/>")
         return out
@@ -401,53 +404,11 @@ st.markdown(
     '<div class="big-title">📊 Job Match & Gap Analysis</div>',
     unsafe_allow_html=True,
 )
-st.caption("Upload your resume and analyze your fit against the selected job using AI-powered insights.")
-
-# ===== SIDEBAR: AI CONFIGURATION =====
-with st.sidebar:
-    st.header("⚙️ AI Configuration")
-    
-    use_smart = st.checkbox(
-        "🤖 Use Smart AI Analysis",
-        value=st.session_state["use_smart_analysis"],
-        help="Enable AI-powered analysis using Google Gemini with web search"
-    )
-    st.session_state["use_smart_analysis"] = use_smart
-    
-    if use_smart:
-        st.markdown("---")
-        st.subheader("API Keys")
-        
-        gemini_key = st.text_input(
-            "🔑 Gemini API Key",
-            type="password",
-            value=st.session_state["gemini_api_key"],
-            help="Get your key at https://ai.google.dev/",
-            placeholder="Enter your Gemini API key"
-        )
-        st.session_state["gemini_api_key"] = gemini_key
-        
-        tavily_key = st.text_input(
-            "🔍 Tavily API Key (optional)",
-            type="password",
-            value=st.session_state["tavily_api_key"],
-            help="Get your key at https://tavily.com/ - For web search course recommendations",
-            placeholder="Enter your Tavily API key (optional)"
-        )
-        st.session_state["tavily_api_key"] = tavily_key
-        
-        if not gemini_key:
-            st.warning("⚠️ Gemini API key required for smart analysis")
-        else:
-            st.success("✅ Gemini API key configured")
-        
-        if tavily_key:
-            st.info("🌐 Web search enabled for course recommendations")
-        else:
-            st.info("💡 Add Tavily key for web-based course search")
-        
-        st.markdown("---")
-        st.caption("💡 **Tip**: You can also set these in a `.env` file")
+st.caption("Upload your resume and analyze your fit against the selected job.\n\nAI-powered analysis will be used automatically if GEMINI_API_KEY is set in your .env file.")
+if st.session_state.get("gemini_api_key"):
+    st.info("✅ GEMINI_API_KEY found in environment: AI-powered analysis will run when available")
+else:
+    st.info("ℹ️ No GEMINI_API_KEY found in environment: running keyword-only analysis")
 
 
 
@@ -530,38 +491,35 @@ if st.session_state["resume_text"]:
             st.session_state["job_match_pct"] = match_pct
             st.session_state["keyword_coverage_pct"] = keyword_coverage
 
-            # Choose analysis method
-            if st.session_state["use_smart_analysis"] and st.session_state["gemini_api_key"]:
-                # === SMART AI ANALYSIS ===
-                st.info("🤖 Using AI-powered smart analysis...")
-                
-                analysis, courses = get_smart_gap_analysis(
-                    job=selected_job,
-                    resume_text=resume_text,
-                    keyword_overlap=kw_overlap,
-                    keyword_gaps=kw_gaps,
-                    gemini_api_key=st.session_state["gemini_api_key"],
-                    tavily_api_key=st.session_state["tavily_api_key"] if st.session_state["tavily_api_key"] else None,
-                    use_web_search=bool(st.session_state["tavily_api_key"]),
-                )
-                
-                overview_section = (
-                    "**📊 MATCH OVERVIEW**\n\n"
-                    f"- Keyword overlap: {len(kw_overlap)} of {job_kw_total} unique keywords\n"
-                    f"- Coverage: {keyword_coverage}%\n\n"
-                )
-                
-                result = (
-                    f"{overview_section}"
-                    f"**🤖 AI-POWERED GAP ANALYSIS**\n\n"
-                    f"{analysis}\n\n"
-                )
-                
-                st.session_state["analysis_text"] = result
-                st.session_state["course_recommendations"] = courses
-                
+            # === ANALYSIS ===
+            # If GEMINI_API_KEY is present in .env, attempt to use AI analysis (if packages installed).
+            if st.session_state.get("gemini_api_key"):
+                try:
+                    # Use the AI/LLM powered analysis
+                    st.info("🤖 Gemini API key detected — attempting AI-powered analysis...")
+                    analysis, courses = get_smart_gap_analysis(
+                        job=selected_job,
+                        resume_text=resume_text,
+                        keyword_overlap=kw_overlap,
+                        keyword_gaps=kw_gaps,
+                        gemini_api_key=st.session_state.get("gemini_api_key"),
+                        tavily_api_key=st.session_state.get("tavily_api_key"),
+                        use_web_search=bool(st.session_state.get("tavily_api_key")),
+                    )
+                except Exception as e:
+                    # Fall back to keyword-only analysis if the AI path fails
+                    st.warning(f"AI analysis failed: {e}. Using keyword-only analysis instead.")
+                    analysis = generate_keyword_only_analysis_text(
+                        selected_job,
+                        resume_text,
+                        kw_overlap,
+                        kw_gaps,
+                        job_kw_total=job_kw_total,
+                        keyword_coverage=keyword_coverage,
+                    )
+                    courses = None
             else:
-                # === BASIC KEYWORD ANALYSIS (FALLBACK) ===
+                # No API key set; use keyword-only analysis
                 analysis = generate_keyword_only_analysis_text(
                     selected_job,
                     resume_text,
@@ -570,74 +528,68 @@ if st.session_state["resume_text"]:
                     job_kw_total=job_kw_total,
                     keyword_coverage=keyword_coverage,
                 )
+                courses = None
+            # Generate keyword-only analysis narrative and simple course recommendation
+            analysis = generate_keyword_only_analysis_text(
+                selected_job,
+                resume_text,
+                kw_overlap,
+                kw_gaps,
+                job_kw_total=job_kw_total,
+                keyword_coverage=keyword_coverage,
+            )
 
-                course = recommend_course(selected_job, kw_gaps)
+            course = recommend_course(selected_job, kw_gaps)
 
-                overview_section = (
-                    "**MATCH OVERVIEW**\n\n"
-                    f"- Keyword overlap count: {len(kw_overlap)} of {job_kw_total} unique JD keywords\n"
-                    f"- Coverage: {keyword_coverage}%\n\n"
-                )
+            overview_section = (
+                "**📊 MATCH OVERVIEW**\n\n"
+                f"- Keyword overlap: {len(kw_overlap)} of {job_kw_total} unique keywords\n"
+                f"- Coverage: {keyword_coverage}%\n\n"
+            )
 
-                recommendations_section = (
+            result = (
+                f"{overview_section}"
+                f"**GAP ANALYSIS (Narrative)**\n\n"
+                f"{analysis}\n\n"
+            )
+
+            st.session_state["analysis_text"] = result
+            # If AI returned courses, use them; others wise use local recommendation
+            if courses:
+                st.session_state["course_recommendations"] = courses
+            else:
+                st.session_state["course_recommendations"] = (
                     "**COURSE RECOMMENDATION**\n\n"
-                    f"- Suggested course: {course}\n"
+                    f"- Suggested course: {recommend_course(selected_job, kw_gaps)}\n"
                 )
-
-                result = (
-                    f"{overview_section}"
-                    f"**GAP ANALYSIS (Narrative)**\n\n"
-                    f"{analysis}\n\n"
-                )
-
-                st.session_state["analysis_text"] = result
-                st.session_state["course_recommendations"] = recommendations_section
         
         st.rerun()
 
 if st.session_state["analysis_text"]:
-    st.markdown("### 📋 Analysis Results")
+    st.markdown("---")
+    st.markdown("## 📊 Analysis Results")
     
+    analysis_text = st.session_state["analysis_text"]
+    
+    # Parse and display match overview section
+    if "MATCH OVERVIEW" in analysis_text:
+        # Extract overview section
+        overview_match = analysis_text.split("**GAP ANALYSIS")[0] if "**GAP ANALYSIS" in analysis_text else analysis_text
+        with st.expander("📊 **Match Overview**", expanded=True):
+            st.markdown(overview_match)
+
     # Display main analysis
-    analysis_html = st.session_state["analysis_text"].replace('\n', '<br>')
-    st.markdown(
-        f"""
-        <div style="
-            background-color:#f0f7ff;
-            padding:20px;
-            border-radius:10px;
-            border-left:6px solid #2a76d2;
-            font-size:15px;
-        ">
-        {analysis_html}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    if "**GAP ANALYSIS" in analysis_text:
+        gap_analysis = analysis_text.split("**GAP ANALYSIS")[1].strip()
+        with st.expander("📈 **Gap Analysis**", expanded=True):
+            st.markdown(gap_analysis)
     
     # Display course recommendations
     if st.session_state["course_recommendations"]:
         st.markdown("---")
-        st.markdown("### 📚 Course Recommendations")
         
-        if st.session_state["use_smart_analysis"] and st.session_state["tavily_api_key"]:
-            st.info("🌐 Recommendations based on web search results")
-        
-        course_html = st.session_state["course_recommendations"].replace('\n', '<br>')
-        st.markdown(
-            f"""
-            <div style="
-                background-color:#f0fff4;
-                padding:20px;
-                border-radius:10px;
-                border-left:6px solid #22c55e;
-                font-size:15px;
-            ">
-            {course_html}
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        with st.expander("📚 **Course Recommendations**", expanded=True):
+            st.markdown(st.session_state["course_recommendations"])
     
     # Export as PDF
     st.markdown("---")
@@ -661,15 +613,7 @@ if st.session_state["analysis_text"]:
         elif pdf_err:
             st.info(pdf_err)
     
-    # Quick insights (if smart analysis is enabled)
-    if st.session_state["use_smart_analysis"] and st.session_state["gemini_api_key"]:
-        with st.expander("💡 Quick AI Insights"):
-            insights = get_quick_insights(
-                resume_text=st.session_state["resume_text"],
-                job_description=strip_html(get_job_description_text(selected_job)),
-                gemini_api_key=st.session_state["gemini_api_key"],
-            )
-            st.markdown(insights)
+    # (Quick AI insights removed)
             
 else:
     if not st.session_state["resume_text"]:

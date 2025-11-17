@@ -3,18 +3,20 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.13
+  - python=3.12
+  - pandas
+  - requests
+  - cryptography
+  - authlib
+  - python-dotenv
   - pip
   - pip:
-      - streamlit==1.32.2
-      - pandas==2.1.4
-      - requests==2.31.0
-      - PyPDF2==3.20.1
-      - python-docx==0.8.11
-      - langchain==0.3.27
-      - langchain-google-genai==2.0.5
-      - langchain-community==0.3.26
-      - google-generativeai==0.8.3
-      - tavily-python==0.5.0
-      - python-dotenv==1.0.0
-      - reportlab==4.2.2
+      - streamlit
+      - PyPDF2
+      - python-docx
+      - langchain
+      - langchain-google-genai
+      - langchain-community
+      - google-generativeai
+      - tavily-python
+      - reportlab

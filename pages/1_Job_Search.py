@@ -20,6 +20,7 @@ for key, default in [
     ("full_jobs", []),           # list of full backend job dicts (inner "job")
     ("flat_jobs", []),           # simplified rows for UI table
     ("selected_job_idx", None),  # index into full_jobs / flat_jobs
+    ("raw_response", None),      # raw API response for debugging
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -84,6 +85,9 @@ if st.sidebar.button("Fetch Jobs"):
             per_page=50,
             keywords=sidebar_job_title,
         )
+    
+    # Store raw response in session state for debugging
+    st.session_state["raw_response"] = raw
 
     wrapped = raw.get("data", {}).get("result", []) if raw else []
 
@@ -241,10 +245,12 @@ if flat_jobs:
 else:
     st.info("Use the filters in the sidebar to search for jobs.")
 
-    # --- Debug expanders moved to bottom ---
+# --- Debug expanders moved to bottom ---
+if "raw_response" in st.session_state and st.session_state["raw_response"]:
     with st.expander("🔍 Debug: Raw backend response"):
-        st.json(raw)
-
+        st.json(st.session_state["raw_response"])
+    
+    wrapped = st.session_state["raw_response"].get("data", {}).get("result", [])
     if wrapped:
         first_job_full = wrapped[0]               # the whole wrapper (item)
         first_job = first_job_full.get("job", {}) # the "job" dictionary inside

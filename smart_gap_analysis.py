@@ -35,10 +35,7 @@ def get_smart_gap_analysis(
         from langchain_google_genai import ChatGoogleGenerativeAI
         from langchain_core.prompts import ChatPromptTemplate
         from langchain_core.output_parsers import StrOutputParser
-        from langchain_community.tools.tavily_search import TavilySearchResults
-        from langchain.agents import create_react_agent, AgentExecutor
-        from langchain.prompts import PromptTemplate
-        from langchain import hub
+        from langchain_tavily import TavilySearch
     except ImportError as e:
         return (
             f"❌ Missing required packages. Please install: {str(e)}\n\n"
@@ -140,7 +137,7 @@ Be specific, professional, and Singapore-focused. Use markdown formatting.
     if use_web_search and tavily_key:
         try:
             # Initialize web search tool
-            search = TavilySearchResults(
+            search = TavilySearch(
                 api_key=tavily_key,
                 max_results=3,
                 search_depth="advanced",
