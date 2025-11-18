@@ -584,12 +584,25 @@ if st.session_state["analysis_text"]:
         with st.expander("📈 **Gap Analysis**", expanded=True):
             st.markdown(gap_analysis)
     
-    # Display course recommendations
+    # Display course recommendations (dedupe repeated paragraphs)
     if st.session_state["course_recommendations"]:
         st.markdown("---")
         
         with st.expander("📚 **Course Recommendations**", expanded=True):
-            st.markdown(st.session_state["course_recommendations"])
+            # Remove repeated paragraphs in recommendations (sometimes LLM returns duplicates)
+            def _dedupe_paragraphs(s: str) -> str:
+                if not s:
+                    return s
+                import re
+                parts = [p.strip() for p in re.split(r"\n\s*\n", s) if p.strip()]
+                seen = set(); uniq = []
+                for p in parts:
+                    if p not in seen:
+                        seen.add(p); uniq.append(p)
+                return "\n\n".join(uniq)
+
+            cleaned = _dedupe_paragraphs(st.session_state["course_recommendations"])
+            st.markdown(cleaned)
     
     # Export as PDF
     st.markdown("---")

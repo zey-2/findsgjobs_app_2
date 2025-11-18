@@ -1,6 +1,7 @@
 """Smart Gap Analysis using LangChain + Gemini API with Web Search."""
 import os
 from typing import Dict, List, Tuple, Optional
+import re
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -54,11 +55,12 @@ def get_smart_gap_analysis(
         )
     
     # Initialize Gemini LLM
+    # Use a larger token limit to avoid truncation of longer analyses
     llm = ChatGoogleGenerativeAI(
         model="gemini-2.5-flash",
         google_api_key=gemini_key,
         temperature=0.3,
-        max_tokens=2048,
+        max_tokens=4096,
     )
     
     # Extract job details
@@ -111,7 +113,7 @@ Provide a structured analysis with these sections:
 
 3. **SKILL GAPS** (3-5 areas that need development or are missing)
 
-4. **RECOMMENDATIONS** (3-4 actionable steps to improve candidacy)
+            max_tokens=8192,
 
 Be specific, professional, and Singapore-focused. Use markdown formatting.
 """)
@@ -122,7 +124,7 @@ Be specific, professional, and Singapore-focused. Use markdown formatting.
     try:
         gap_analysis = analysis_chain.invoke({
             "job_context": job_context,
-            "resume_text": resume_text[:3000],  # Limit to avoid token overflow
+            "resume_text": resume_text[:6000],  # Limit to avoid token overflow
             "keyword_overlap": ", ".join(keyword_overlap[:20]),
             "overlap_count": len(keyword_overlap),
             "keyword_gaps": ", ".join(keyword_gaps[:20]),
@@ -170,22 +172,26 @@ And these web search results about Singapore courses:
 {search_results}
 
 Provide 3-4 course recommendations. For each course include:
-- Course name and provider
-- Relevance to gaps (1 sentence)
-- Format (online/classroom/blended)
-- SkillsFuture eligibility if mentioned
 
 Format as a numbered list with clear structure.
 """)
             ])
-            
-            course_chain = course_prompt | llm | StrOutputParser()
+            course_llm = ChatGoogleGenerativeAI(
+                model="gemini-2.5-flash",
+                google_api_key=gemini_key,
+                temperature=0.3,
+                max_tokens=1500,
+            )
+            course_chain = course_prompt | course_llm | StrOutputParser()
             
             course_recommendations = course_chain.invoke({
                 "job_title": job_title,
                 "skill_gaps": ", ".join(keyword_gaps[:10]),
                 "search_results": str(search_results),
             })
+            # If AI returned less-than-expected output, fall back to LLM-only recommendations
+            if not (course_recommendations and course_recommendations.strip() and len(course_recommendations.strip()) > 30):
+                course_recommendations = get_llm_course_recommendations(llm, job_title, keyword_gaps)
             
         except Exception as e:
             # Fallback to LLM-only recommendations
@@ -198,7 +204,31 @@ Format as a numbered list with clear structure.
         course_recommendations = get_llm_course_recommendations(
             llm, job_title, keyword_gaps
         )
+        # If the LLM didn't provide enough detail, use a heuristic fallback
+        if not (course_recommendations and course_recommendations.strip() and len(course_recommendations.strip()) > 60):
+            course_recommendations = (
+                "No web-based course recommendations found. Suggested fallback courses:\n\n"
+                "- 'Digital Office Skills with Microsoft 365' — Singapore Polytechnic PACE\n"
+                "- 'Excel Skills for Business' — Coursera (SkillsFuture claimable)\n"
+                "- 'Career Resilience & Future Skills' — SkillsFuture Singapore"
+            )
     
+    # Deduplicate repeated paragraphs in both analysis and course recommendations
+    def _dedupe_paragraphs(s: str) -> str:
+        if not s:
+            return s
+        parts = [p.strip() for p in re.split(r"\n\s*\n", s) if p.strip()]
+        seen = set()
+        uniq = []
+        for p in parts:
+            if p not in seen:
+                seen.add(p)
+                uniq.append(p)
+        return "\n\n".join(uniq)
+
+    gap_analysis = _dedupe_paragraphs(gap_analysis)
+    course_recommendations = _dedupe_paragraphs(course_recommendations)
+
     return gap_analysis, course_recommendations
 
 
@@ -223,9 +253,6 @@ def get_llm_course_recommendations(llm, job_title: str, skill_gaps: List[str]) -
 {skill_gaps}
 
 Recommend 3-4 relevant courses available in Singapore. For each include:
-- Course name and provider
-- Why it addresses the gaps (1 sentence)
-- Format and SkillsFuture eligibility if applicable
 
 Format as a numbered list.
 """)

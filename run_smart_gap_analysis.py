@@ -149,6 +149,20 @@ def main():
         analysis = f'AI function raised an exception: {e}'
         courses = 'No recommendations'
 
+    def dedupe_paragraphs(s: str) -> str:
+        import re
+        if not s:
+            return s
+        parts = [p.strip() for p in re.split(r"\n\s*\n", s) if p.strip()]
+        seen = set(); uniq = []
+        for p in parts:
+            if p not in seen:
+                seen.add(p); uniq.append(p)
+        return "\n\n".join(uniq)
+
+    analysis = dedupe_paragraphs(analysis)
+    courses = dedupe_paragraphs(courses)
+
     print('\n==== ANALYSIS ====', '\n')
     print(analysis)
 
