@@ -33,13 +33,13 @@ A Streamlit-based job search and career gap analysis application that helps user
   - Years of experience
   - MRT stations
   - Salary range
-- Interactive job results table
-- Detailed job description viewer
-- Pagination support
+  - Interactive job results table
+  - Detailed job description viewer
+  - Backend supports pagination; the Streamlit UI fetches a single page by default (configurable).
 
 ### 📊 Gap Analysis
 
-- Upload your resume (PDF or DOCX format)
+- Upload your resume (PDF, DOCX, DOC, or TXT format)
 - **NEW: AI-powered smart gap analysis** using LangChain + Google Gemini
 - Compare your qualifications against job requirements
 - Keyword matching and coverage metrics
@@ -85,7 +85,7 @@ A Streamlit-based job search and career gap analysis application that helps user
 ### Prerequisites
 
 - Anaconda or Miniconda
-- Python 3.13
+- Python 3.12 (as specified in `environment.yml`)
 
 ### Setup
 
@@ -93,7 +93,7 @@ A Streamlit-based job search and career gap analysis application that helps user
 
 ```bash
 git clone <repository-url>
-cd findsgjobs_app_1
+cd findsgjobs_app_2
 ```
 
 2. Create the conda environment:
@@ -118,7 +118,8 @@ The application now includes **AI-powered smart gap analysis** using LangChain a
 
 #### 🤖 Smart AI Analysis
 
-- **Intelligent Gap Analysis**: Uses Gemini 1.5 Flash for comprehensive, contextual analysis
+-- **Intelligent Gap Analysis**: Uses Google's Gemini model (configured in code as `gemini-2.5-flash`) for comprehensive, contextual analysis
+
 - **Structured Insights**:
   - Match Strength Assessment
   - Key Strengths Identification
@@ -142,16 +143,18 @@ The application now includes **AI-powered smart gap analysis** using LangChain a
 
 #### 1. Install Required Packages
 
-Already included in `environment.yml`:
+Exact pinned package versions are provided in `environment.yml`; use that file to create the environment:
 
 ```bash
 conda env update -f environment.yml
 ```
 
-Or install manually:
+If you prefer to install dependencies with `pip` (not recommended for reproducible installs), a representative command is:
 
 ```bash
-pip install langchain-google-genai langchain-community google-generativeai tavily-python python-dotenv ddgs
+pip install streamlit PyPDF2 python-docx \
+   langchain==1.0.7 langchain-google-genai==3.0.3 langchain-community==0.4.1 langchain-tavily \
+   google-ai-generativelanguage==0.9.0 tavily-python ddgs python-dotenv
 ```
 
 #### 2. Get API Keys
@@ -173,8 +176,6 @@ You can use either:
 
 #### 3. Configure API Keys
 
-**Option A: Use `.env` file (Recommended)**
-
 1. Copy the example file:
 
    ```bash
@@ -187,22 +188,11 @@ You can use either:
    TAVILY_API_KEY=your_actual_tavily_key_here
    ```
 
-**Option B: Enter in Streamlit Sidebar**
-
-1. Run the application
-2. Navigate to Gap Analysis page
-3. Open the sidebar (⚙️ AI Configuration)
-4. Check "Use Smart AI Analysis"
-5. Enter your API keys in the text fields
-
 ### Using Smart Gap Analysis
 
 1. **Upload Resume**: Upload your resume (PDF, DOCX, or TXT)
 2. **Select Job**: Choose a job from the dropdown
 3. **Enable Smart Analysis** (Sidebar):
-   - Check "🤖 Use Smart AI Analysis"
-   - Enter your Gemini API key
-   - (Optional) Enter Tavily API key for web search
    - (Optional) Choose which web search tool to use for course recommendations:
      - In the Streamlit sidebar, open **Web search settings** and select **tavily** or **duckduckgo**.
      - If you run the CLI tool, pass `--search-tool tavily` or `--search-tool duckduckgo`.
@@ -341,7 +331,7 @@ streamlit run Overview.py
 ## Project Structure
 
 ```
-findsgjobs_app_1/
+findsgjobs_app_2/
 ├── Overview.py              # Main entry point and home page
 ├── api_client.py           # API client for fetching job data
 ├── smart_gap_analysis.py   # AI-powered gap analysis logic
@@ -356,22 +346,25 @@ findsgjobs_app_1/
 
 ## Dependencies
 
-### Core Dependencies
+Exact, tested package versions are provided in `environment.yml`. Use that file to create the conda environment for reproducible installs.
 
-- **streamlit** (1.32.2) - Web application framework
-- **pandas** (2.1.4) - Data manipulation and analysis
-- **requests** (2.31.0) - HTTP library for API calls
-- **PyPDF2** (3.20.1) - PDF file parsing
-- **python-docx** (0.8.11) - DOCX file parsing
+### Core Dependencies (representative)
 
-### AI/ML Dependencies
+- `streamlit` - Web application framework
+- `pandas` - Data manipulation and analysis
+- `requests` - HTTP library for API calls
+- `PyPDF2` - PDF file parsing
+- `python-docx` - DOCX file parsing
 
-- **langchain** (0.3.27) - LLM framework
-- **langchain-google-genai** (2.0.5) - Gemini integration
-- **langchain-community** (0.3.26) - Community tools
-- **google-generativeai** (0.8.3) - Gemini API client
-- **tavily-python** (0.5.0) - Web search API
-- **python-dotenv** (1.0.0) - Environment variable management
+### AI/ML Dependencies (representative)
+
+- `langchain` and `langchain-google-genai` - Gemini integration
+- `langchain-community` / DuckDuckGo tools - optional web search helpers
+- `google-ai-generativelanguage` - Google Gemini client
+- `tavily-python` - Tavily web search API (optional)
+- `python-dotenv` - Environment variable management
+
+Refer to `environment.yml` for the exact pinned versions included in this project.
 
 ## API Integration
 
@@ -395,7 +388,7 @@ The application integrates with the FindSGJobs API endpoint:
 
 ### Gap Analysis Workflow
 
-1. Upload your resume (PDF or DOCX)
+1. Upload your resume (PDF, DOCX, DOC, or TXT)
 2. Select a job from your search results
 3. View automated analysis comparing:
    - Your skills vs. job requirements
@@ -410,7 +403,13 @@ The application integrates with the FindSGJobs API endpoint:
 **"Missing required packages"**
 
 ```bash
-pip install langchain-google-genai langchain-community tavily-python python-dotenv
+# Use the pinned environment.yml for reproducible installs:
+conda env update -f environment.yml
+
+# Or (less reproducible) install representative pip packages:
+pip install streamlit PyPDF2 python-docx \
+   langchain==1.0.7 langchain-google-genai==3.0.3 langchain-community==0.4.1 \
+   google-ai-generativelanguage==0.9.0 tavily-python python-dotenv
 ```
 
 **"Gemini API key not found"**
