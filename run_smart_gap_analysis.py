@@ -95,6 +95,8 @@ def main():
     parser.add_argument('--resume-text', type=str, help='Direct resume text (alternative to --resume)')
     parser.add_argument('--out', type=str, default=None, help='Optional output file to save analysis')
     parser.add_argument('--no-web-search', action='store_true', help='Disable web search for course recommendations')
+    parser.add_argument('--search-tool', type=str, default=None,
+                        help='Optional: choose web search tool: "tavily" (default), "duckduckgo" (ddg)')
     args = parser.parse_args()
 
     resume_text = ''
@@ -141,6 +143,7 @@ def main():
             resume_text=resume_text,
             keyword_overlap=overlap,
             keyword_gaps=gaps,
+            search_tool=args.search_tool or ("tavily" if os.getenv('TAVILY_API_KEY') and not args.no_web_search else "duckduckgo"),
             gemini_api_key=os.getenv('GEMINI_API_KEY'),
             tavily_api_key=os.getenv('TAVILY_API_KEY'),
             use_web_search=use_web_search,

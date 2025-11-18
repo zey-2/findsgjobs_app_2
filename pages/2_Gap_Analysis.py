@@ -31,6 +31,7 @@ for key, default in [
     # Removed AI config keys (no sidebar AI settings)
     ("gemini_api_key", os.getenv("GEMINI_API_KEY", "")),
     ("tavily_api_key", os.getenv("TAVILY_API_KEY", "")),
+    ("search_tool", "tavily" if os.getenv("TAVILY_API_KEY") else "duckduckgo"),
     ("course_recommendations", ""), # course recommendations
 ]:
     if key not in st.session_state:
@@ -410,6 +411,26 @@ if st.session_state.get("gemini_api_key"):
 else:
     st.info("ℹ️ No GEMINI_API_KEY found in environment: running keyword-only analysis")
 
+# Allow user to choose web search tool
+st.sidebar.markdown("### Web search settings")
+search_tool_choice = st.sidebar.selectbox(
+    "Search tool",
+    options=["tavily", "duckduckgo"],
+    index=0 if st.session_state.get("search_tool") == "tavily" else 1,
+    help="Choose the web search tool used to find course recommendations. Tavily requires an API key (TAVILY_API_KEY in .env). DuckDuckGo (langchain_community) doesn't require a key.",
+)
+st.session_state["search_tool"] = search_tool_choice
+# If duckduckgo is selected, check if ddgs is installed; otherwise prompt the user
+if st.session_state["search_tool"] == "duckduckgo":
+    try:
+        import importlib
+        if importlib.util.find_spec("ddgs") is None:
+            st.sidebar.warning("DuckDuckGo tool requires the 'ddgs' package. Install with: pip install ddgs or add ddgs to your conda env.")
+    except Exception:
+        st.sidebar.warning("DuckDuckGo tool requires the 'ddgs' package. Install with: pip install ddgs or add ddgs to your conda env.")
+elif st.session_state["search_tool"] == "tavily" and not st.session_state.get("tavily_api_key"):
+    st.sidebar.info("Tavily selected but no TAVILY_API_KEY set; web search will be disabled unless you provide a Tavern API key in the .env or sidebar.")
+
 
 
 # ---------------- MAIN CONTENT ----------------
@@ -504,7 +525,10 @@ if st.session_state["resume_text"]:
                         keyword_gaps=kw_gaps,
                         gemini_api_key=st.session_state.get("gemini_api_key"),
                         tavily_api_key=st.session_state.get("tavily_api_key"),
-                        use_web_search=bool(st.session_state.get("tavily_api_key")),
+                        use_web_search=not (st.session_state.get("search_tool") is None) and (
+                            st.session_state.get("search_tool") == "duckduckgo" or bool(st.session_state.get("tavily_api_key"))
+                        ),
+                        search_tool=st.session_state.get("search_tool"),
                     )
                 except Exception as e:
                     # Fall back to keyword-only analysis if the AI path fails

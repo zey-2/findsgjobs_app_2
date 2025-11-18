@@ -13,6 +13,7 @@ def get_smart_gap_analysis(
     resume_text: str,
     keyword_overlap: List[str],
     keyword_gaps: List[str],
+    search_tool: Optional[str] = "tavily",
     gemini_api_key: Optional[str] = None,
     tavily_api_key: Optional[str] = None,
     use_web_search: bool = True,
@@ -36,7 +37,15 @@ def get_smart_gap_analysis(
         from langchain_google_genai import ChatGoogleGenerativeAI
         from langchain_core.prompts import ChatPromptTemplate
         from langchain_core.output_parsers import StrOutputParser
-        from langchain_tavily import TavilySearch
+        # Optional web search providers
+        try:
+            from langchain_tavily import TavilySearch
+        except Exception:
+            TavilySearch = None
+        try:
+            from langchain_community.tools.ddg_search.tool import DuckDuckGoSearchRun
+        except Exception:
+            DuckDuckGoSearchRun = None
     except ImportError as e:
         return (
             f"❌ Missing required packages. Please install: {str(e)}\n\n"
@@ -136,23 +145,39 @@ Be specific, professional, and Singapore-focused. Use markdown formatting.
     # === PART 2: COURSE RECOMMENDATIONS WITH WEB SEARCH ===
     course_recommendations = ""
     
-    if use_web_search and tavily_key:
+    # Note: `search_tool` may be 'tavily' or 'duckduckgo' or 'ddg' or None
+    search_tool = (search_tool or "tavily").lower()
+    if use_web_search and (search_tool == "tavily" and tavily_key or search_tool in ("duckduckgo", "ddg")):
         try:
             # Initialize web search tool
-            search = TavilySearch(
-                api_key=tavily_key,
-                max_results=3,
-                search_depth="advanced",
-                include_answer=True,
-                include_raw_content=False,
-            )
+            search = None
+            if search_tool == "tavily" and TavilySearch and tavily_key:
+                search = TavilySearch(
+                    api_key=tavily_key,
+                    max_results=3,
+                    search_depth="advanced",
+                    include_answer=True,
+                    include_raw_content=False,
+                )
+            elif search_tool in ("duckduckgo", "ddg") and DuckDuckGoSearchRun:
+                # DuckDuckGoSearchRun typically provides a `run` method that returns a string
+                search = DuckDuckGoSearchRun()
+            else:
+                # If requested tool not available, raise to fall back to LLM-only
+                raise RuntimeError(f"Requested search tool '{search_tool}' not available or missing API key")
             
             # Create search query
             top_gaps = keyword_gaps[:5]
             search_query = f"Singapore professional courses training for {job_title} {' '.join(top_gaps)} SkillsFuture"
             
             # Perform search
-            search_results = search.invoke(search_query)
+            # Some search tool implementations expose `invoke` (LangChain tool), others use `run`.
+            if hasattr(search, "invoke"):
+                search_results = search.invoke(search_query)
+            elif hasattr(search, "run"):
+                search_results = search.run(search_query)
+            else:
+                search_results = search(search_query)
             
             # Process search results with LLM
             course_prompt = ChatPromptTemplate.from_messages([

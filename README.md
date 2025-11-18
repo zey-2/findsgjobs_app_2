@@ -62,6 +62,7 @@ A Streamlit-based job search and career gap analysis application that helps user
 
    - **Gemini API**: Visit https://ai.google.dev/ (Required for AI)
    - **Tavily API**: Visit https://tavily.com/ (Optional for web search)
+   - **DuckDuckGo (community)**: Optionally use the DuckDuckGo search tool via `langchain_community` (no API key required). Install `ddgs` if you plan to use DuckDuckGo.
 
 3. **Configure keys:**
 
@@ -150,7 +151,7 @@ conda env update -f environment.yml
 Or install manually:
 
 ```bash
-pip install langchain-google-genai langchain-community google-generativeai tavily-python python-dotenv
+pip install langchain-google-genai langchain-community google-generativeai tavily-python python-dotenv ddgs
 ```
 
 #### 2. Get API Keys
@@ -163,12 +164,12 @@ pip install langchain-google-genai langchain-community google-generativeai tavil
 4. Create or select a project
 5. Copy your API key
 
-**Tavily API Key (Optional, for Web Search)**
+**Web Search Options (Optional, for Web Search)**
 
-1. Visit [Tavily](https://tavily.com/)
-2. Sign up for a free account
-3. Navigate to API Keys section
-4. Copy your API key
+You can use either:
+
+1. **Tavily** (requires API key): Visit [Tavily](https://tavily.com/), sign up, and copy your API key.
+2. **DuckDuckGo** (no API key required): Uses the `langchain_community` DuckDuckGo tool with the `ddgs` package.
 
 #### 3. Configure API Keys
 
@@ -202,6 +203,9 @@ pip install langchain-google-genai langchain-community google-generativeai tavil
    - Check "🤖 Use Smart AI Analysis"
    - Enter your Gemini API key
    - (Optional) Enter Tavily API key for web search
+   - (Optional) Choose which web search tool to use for course recommendations:
+     - In the Streamlit sidebar, open **Web search settings** and select **tavily** or **duckduckgo**.
+     - If you run the CLI tool, pass `--search-tool tavily` or `--search-tool duckduckgo`.
 4. **Run Analysis**: Click "Run Gap Analysis"
 5. **Review Results**:
    - **Match Overview**: Keyword statistics
