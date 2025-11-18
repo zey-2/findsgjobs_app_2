@@ -475,10 +475,10 @@ The application uses Streamlit's session state to maintain:
 
 ## Contributing
 
-This project is part of the NTU Data Science & AI Capstone program.
+This project is part of the NTU Data Science & AI Capstone project.
 
 ## Acknowledgments
 
-- NTU Data Science & AI Program
+- NTU SCTP Data Science & AI Course
 - FindSGJobs.com API
-- Streamlit framework
+- Glenis Law (for the original code base)
